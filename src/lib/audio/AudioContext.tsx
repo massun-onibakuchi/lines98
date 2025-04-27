@@ -46,9 +46,10 @@ interface AudioProviderProps {
 }
 
 export function AudioProvider({ children }: AudioProviderProps) {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolumeState] = useState(0.5);
   const [isClient, setIsClient] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
 
   // Initialize audio on client-side only
   useEffect(() => {
@@ -68,6 +69,17 @@ export function AudioProvider({ children }: AudioProviderProps) {
         audio.muted = isMuted;
         audioElements[type as SoundType] = audio;
       });
+      
+      // Try to play background music (may be blocked by browser)
+      if (!isMuted && audioElements.background) {
+        audioElements.background.play().catch(error => {
+          console.error('Error playing background music:', error);
+          // Don't mark as initialized if autoplay failed
+          return;
+        });
+      }
+      
+      setAudioInitialized(true);
     }
     
     // Cleanup function
@@ -80,6 +92,32 @@ export function AudioProvider({ children }: AudioProviderProps) {
       });
     };
   }, []);
+
+  // Add listener for any user interaction to start audio
+  useEffect(() => {
+    if (!isClient || !audioInitialized) return;
+    
+    const startAudioOnInteraction = () => {
+      if (!isMuted && audioElements.background) {
+        audioElements.background.play().catch(e => console.error('Error starting background music:', e));
+      }
+      // Remove listeners after first interaction
+      document.removeEventListener('click', startAudioOnInteraction);
+      document.removeEventListener('touchstart', startAudioOnInteraction);
+      document.removeEventListener('keydown', startAudioOnInteraction);
+    };
+    
+    // Add listeners for common user interactions
+    document.addEventListener('click', startAudioOnInteraction);
+    document.addEventListener('touchstart', startAudioOnInteraction);
+    document.addEventListener('keydown', startAudioOnInteraction);
+    
+    return () => {
+      document.removeEventListener('click', startAudioOnInteraction);
+      document.removeEventListener('touchstart', startAudioOnInteraction);
+      document.removeEventListener('keydown', startAudioOnInteraction);
+    };
+  }, [isClient, audioInitialized, isMuted]);
 
   // Function to play a sound
   const play = (sound: SoundType) => {
