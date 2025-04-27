@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Ball from '@/components/Ball';
 import { useGame } from '@/lib/game/GameContext';
+import { useAudio } from '@/lib/audio/AudioContext';
 import { Position } from '@/lib/game/types';
 
 const GameBoard: React.FC = () => {
@@ -11,6 +12,7 @@ const GameBoard: React.FC = () => {
   const [cellSize, setCellSize] = useState(50); // Default size
   const [ballSize, setBallSize] = useState(40); // Default size
   const [isClient, setIsClient] = useState(false);
+  const audio = useAudio();
 
   // Set isClient to true after component mounts to ensure we're on the client side
   useEffect(() => {
@@ -36,6 +38,29 @@ const GameBoard: React.FC = () => {
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, [isClient]);
+  
+  // Start background music when component mounts
+  useEffect(() => {
+    if (isClient) {
+      // Play background music
+      audio.play('background');
+    }
+    
+    // Cleanup: stop background music when component unmounts
+    return () => {
+      audio.stop('background');
+    };
+  }, [isClient, audio]);
+  
+  // Play sound effects when board state changes
+  useEffect(() => {
+    if (!isClient) return;
+    
+    // Check if game is over
+    if (state.gameOver) {
+      audio.play('gameOver');
+    }
+  }, [state.gameOver, isClient, audio]);
 
   // Handle clicking on a cell
   const handleCellClick = (row: number, col: number) => {
@@ -45,9 +70,27 @@ const GameBoard: React.FC = () => {
     if (cell.ball) {
       // If the cell has a ball, select it
       dispatch({ type: 'SELECT_BALL', position });
+      // Play select sound
+      audio.play('select');
     } else if (state.selectedBall) {
       // If a ball is already selected and this is an empty cell, try to move
       dispatch({ type: 'MOVE_BALL', position });
+      // Play move sound
+      audio.play('move');
+      
+      // Check if we need to play the clear sound (handled in reducer)
+      const selectedRow = state.selectedBall.row;
+      const selectedCol = state.selectedBall.col;
+      
+      // Only attempt to move if there's a valid path
+      if (board[selectedRow][selectedCol].ball && !cell.ball) {
+        setTimeout(() => {
+          // Play clear sound if lines were cleared (check if ball is gone)
+          if (!board[position.row][position.col].ball) {
+            audio.play('clear');
+          }
+        }, 100);
+      }
     }
   };
   

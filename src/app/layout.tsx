@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Line 98 - Online Color Lines Game",
+  title: "Lines98 - Online Color Lines Game",
   description: "Play the classic Line 98 (Color Lines) puzzle game with an auto-mode feature.",
 };
 
